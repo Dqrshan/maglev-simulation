@@ -23,44 +23,54 @@ ACCELERATION = 0.5
 
 class MaglevSimulation:
     def __init__(self):
+        # Initialize pygame first
+        pygame.init()
         
+        # Create OpenGL display
+        self.screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT), DOUBLEBUF|OPENGL)
+        pygame.display.set_caption("Maglev Simulation with Magnetic Field Visualization")
+        
+        # Initialize font
+        pygame.font.init()
+        self.font = pygame.font.SysFont('Arial', 24, bold=True)
+        
+        # Train properties
         self.train_pos = -TRACK_LENGTH/2
         self.train_speed = 0.0
         self.is_running = False
         
-        
+        # Camera properties
         self.camera_distance = 20.0
         self.camera_angle_x = 30.0
         self.camera_angle_y = -30.0
         self.camera_pos = [0, 5, 0]
         
+        # Mouse interaction
         self.mouse_dragging = False
         self.mouse_last_pos = (0, 0)
         
+        # Field visualization
         self.field_lines = []
         self.field_arrows = []
         self.generate_field_geometry()
         
+        # Track geometry
         self.track_vertices = []
         self.generate_track_geometry()
         
+        # Train history for trail effect
         self.train_history = deque(maxlen=100)
         
+        # Performance metrics
         self.last_time = time.time()
         self.frame_count = 0
         self.fps = 0
         
-        self.init_pygame()
+        # Set up OpenGL
+        self.setup_opengl()
         
-        pygame.font.init()
-        self.font = pygame.font.Font(None, 24)
-        
-    def init_pygame(self):
-        """Initialize Pygame and OpenGL context"""
-        pygame.init()
-        pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT), DOUBLEBUF|OPENGL)
-        pygame.display.set_caption("Maglev Simulation with Magnetic Field Visualization")
-        
+    def setup_opengl(self):
+        """Set up OpenGL rendering context"""
         glClearColor(0.1, 0.1, 0.1, 1.0)
         glEnable(GL_DEPTH_TEST)
         glShadeModel(GL_SMOOTH)
@@ -232,31 +242,37 @@ class MaglevSimulation:
         glColor3f(0.8, 0.2, 0.2)
         glBegin(GL_QUADS)
         # Front
+        glNormal3f(-1, 0, 0)
         glVertex3f(-TRAIN_LENGTH/2, -TRAIN_HEIGHT/2, -TRAIN_WIDTH/2)
         glVertex3f(-TRAIN_LENGTH/2, TRAIN_HEIGHT/2, -TRAIN_WIDTH/2)
         glVertex3f(-TRAIN_LENGTH/2, TRAIN_HEIGHT/2, TRAIN_WIDTH/2)
         glVertex3f(-TRAIN_LENGTH/2, -TRAIN_HEIGHT/2, TRAIN_WIDTH/2)
         # Back
+        glNormal3f(1, 0, 0)
         glVertex3f(TRAIN_LENGTH/2, -TRAIN_HEIGHT/2, -TRAIN_WIDTH/2)
         glVertex3f(TRAIN_LENGTH/2, TRAIN_HEIGHT/2, -TRAIN_WIDTH/2)
         glVertex3f(TRAIN_LENGTH/2, TRAIN_HEIGHT/2, TRAIN_WIDTH/2)
         glVertex3f(TRAIN_LENGTH/2, -TRAIN_HEIGHT/2, TRAIN_WIDTH/2)
         # Top
+        glNormal3f(0, 1, 0)
         glVertex3f(-TRAIN_LENGTH/2, TRAIN_HEIGHT/2, -TRAIN_WIDTH/2)
         glVertex3f(TRAIN_LENGTH/2, TRAIN_HEIGHT/2, -TRAIN_WIDTH/2)
         glVertex3f(TRAIN_LENGTH/2, TRAIN_HEIGHT/2, TRAIN_WIDTH/2)
         glVertex3f(-TRAIN_LENGTH/2, TRAIN_HEIGHT/2, TRAIN_WIDTH/2)
         # Bottom
+        glNormal3f(0, -1, 0)
         glVertex3f(-TRAIN_LENGTH/2, -TRAIN_HEIGHT/2, -TRAIN_WIDTH/2)
         glVertex3f(TRAIN_LENGTH/2, -TRAIN_HEIGHT/2, -TRAIN_WIDTH/2)
         glVertex3f(TRAIN_LENGTH/2, -TRAIN_HEIGHT/2, TRAIN_WIDTH/2)
         glVertex3f(-TRAIN_LENGTH/2, -TRAIN_HEIGHT/2, TRAIN_WIDTH/2)
         # Left
+        glNormal3f(0, 0, -1)
         glVertex3f(-TRAIN_LENGTH/2, -TRAIN_HEIGHT/2, -TRAIN_WIDTH/2)
         glVertex3f(TRAIN_LENGTH/2, -TRAIN_HEIGHT/2, -TRAIN_WIDTH/2)
         glVertex3f(TRAIN_LENGTH/2, TRAIN_HEIGHT/2, -TRAIN_WIDTH/2)
         glVertex3f(-TRAIN_LENGTH/2, TRAIN_HEIGHT/2, -TRAIN_WIDTH/2)
         # Right
+        glNormal3f(0, 0, 1)
         glVertex3f(-TRAIN_LENGTH/2, -TRAIN_HEIGHT/2, TRAIN_WIDTH/2)
         glVertex3f(TRAIN_LENGTH/2, -TRAIN_HEIGHT/2, TRAIN_WIDTH/2)
         glVertex3f(TRAIN_LENGTH/2, TRAIN_HEIGHT/2, TRAIN_WIDTH/2)
@@ -268,6 +284,7 @@ class MaglevSimulation:
         for i in range(3):
             offset = -TRAIN_LENGTH/3 + (i * TRAIN_LENGTH/3)
             glBegin(GL_QUADS)
+            glNormal3f(0, 0, -1)
             glVertex3f(offset - 0.3, 0.1, -TRAIN_WIDTH/2 + 0.01)
             glVertex3f(offset + 0.3, 0.1, -TRAIN_WIDTH/2 + 0.01)
             glVertex3f(offset + 0.3, 0.4, -TRAIN_WIDTH/2 + 0.01)
@@ -302,6 +319,7 @@ class MaglevSimulation:
             # Magnet base
             glColor3f(0.1, 0.1, 0.5)
             glBegin(GL_QUADS)
+            glNormal3f(0, 1, 0)
             glVertex3f(-0.3, -0.1, -0.3)
             glVertex3f(0.3, -0.1, -0.3)
             glVertex3f(0.3, -0.1, 0.3)
@@ -383,63 +401,44 @@ class MaglevSimulation:
                 glVertex3f(pos, 0.5, 0)
         glEnd()
     
+    def render_text(self, text, position, color=(255, 255, 255)):
+        """Render text using the glWindowPos and glDrawPixels approach"""
+        text_surface = self.font.render(text, True, color)
+        text_data = pygame.image.tostring(text_surface, "RGBA", True)
+        text_width, text_height = text_surface.get_size()
+        
+        glWindowPos2d(position[0], position[1])
+        glDrawPixels(text_width, text_height, GL_RGBA, GL_UNSIGNED_BYTE, text_data)
+    
     def draw_hud(self):
         """Draw heads-up display with information"""
-        glMatrixMode(GL_PROJECTION)
-        glPushMatrix()
-        glLoadIdentity()
-        glOrtho(0, WINDOW_WIDTH, WINDOW_HEIGHT, 0, -1, 1)
-        glMatrixMode(GL_MODELVIEW)
-        glPushMatrix()
-        glLoadIdentity()
+        # Disable lighting and depth test for 2D rendering
+        glDisable(GL_LIGHTING)
         glDisable(GL_DEPTH_TEST)
+        
+        # Enable blending for transparent text
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-        glColor4f(0.1, 0.1, 0.1, 0.7)
-        glBegin(GL_QUADS)
-        glVertex2f(10, 10)
-        glVertex2f(250, 10)
-        glVertex2f(250, 120)
-        glVertex2f(10, 120)
-        glEnd()
-        glDisable(GL_BLEND)
         
-        glMatrixMode(GL_PROJECTION)
-        glPopMatrix()
-        glMatrixMode(GL_MODELVIEW)
-        glPopMatrix()
+        # Draw stats
+        self.render_text(f"Speed: {abs(self.train_speed):.1f} m/s", (20, WINDOW_HEIGHT - 30))
+        self.render_text(f"Position: {self.train_pos:.1f} m", (20, WINDOW_HEIGHT - 60))
+        self.render_text(f"Status: {'RUNNING' if self.is_running else 'STOPPED'}", (20, WINDOW_HEIGHT - 90))
+        self.render_text(f"FPS: {self.fps:.1f}", (20, WINDOW_HEIGHT - 120))
         
-        screen = pygame.display.get_surface()
+        # Draw controls
+        controls_text = "Controls: Up/Down - Speed | Space - Start/Stop | R - Reset | Left Click+Drag - Rotate | Scroll - Zoom"
+        self.render_text(controls_text, (WINDOW_WIDTH//2 - 350, 20))
         
-        texts = [
-            f"Speed: {abs(self.train_speed):.1f} m/s",
-            f"Position: {self.train_pos:.1f} m",
-            f"Status: {'RUNNING' if self.is_running else 'STOPPED'}",
-            f"FPS: {self.fps:.1f}"
-        ]
-        
-        for i, text in enumerate(texts):
-            text_surface = self.font.render(text, True, (255, 255, 255))
-            screen.blit(text_surface, (20, 30 + i * 20))
-        
-        controls = [
-            "Controls:",
-            "Space: Start/Stop",
-            "Up/Down: Speed",
-            "Middle Drag: Rotate",
-            "Scroll: Zoom"
-        ]
-        
-        for i, text in enumerate(controls):
-            text_surface = self.font.render(text, True, (255, 255, 255))
-            screen.blit(text_surface, (WINDOW_WIDTH - 300, 30 + i * 20))
-        
+        # Restore OpenGL state
         glEnable(GL_DEPTH_TEST)
+        glEnable(GL_LIGHTING)
     
     def render(self):
         """Main rendering function"""
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         
+        # Set up 3D perspective projection
         glMatrixMode(GL_PROJECTION)
         glLoadIdentity()
         gluPerspective(45, WINDOW_WIDTH / WINDOW_HEIGHT, 0.1, 100.0)
@@ -455,22 +454,25 @@ class MaglevSimulation:
         glRotatef(self.camera_angle_x, 1, 0, 0)
         glRotatef(self.camera_angle_y, 0, 1, 0)
         
+        # Draw coordinate axes
         glBegin(GL_LINES)
         glColor3f(1, 0, 0); glVertex3f(0, 0, 0); glVertex3f(5, 0, 0)  # X
         glColor3f(0, 1, 0); glVertex3f(0, 0, 0); glVertex3f(0, 5, 0)  # Y
         glColor3f(0, 0, 1); glVertex3f(0, 0, 0); glVertex3f(0, 0, 5)  # Z
         glEnd()
         
+        # Enable blending for transparent effects
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
         
+        # Draw scene elements
         self.draw_track()
         self.draw_field_lines()
         self.draw_train_trail()
         self.draw_train()
-        glDisable(GL_BLEND)
+        
+        # Draw HUD text
         self.draw_hud()
-        pygame.display.flip()
     
     def handle_events(self):
         """Handle Pygame events"""
@@ -499,7 +501,7 @@ class MaglevSimulation:
                     return False
             
             elif event.type == pygame.MOUSEBUTTONDOWN:
-                if event.button == 1:  # Middle mouse
+                if event.button == 1:  # Left mouse button
                     self.mouse_dragging = True
                     self.mouse_last_pos = event.pos
                 elif event.button == 4:  # Scroll up
@@ -508,7 +510,7 @@ class MaglevSimulation:
                     self.camera_distance = min(50, self.camera_distance + 1)
             
             elif event.type == pygame.MOUSEBUTTONUP:
-                if event.button == 1:  # Middle mouse
+                if event.button == 1:  # Left mouse button
                     self.mouse_dragging = False
             
             elif event.type == pygame.MOUSEMOTION:
@@ -530,6 +532,7 @@ class MaglevSimulation:
             running = self.handle_events()
             self.update()
             self.render()
+            pygame.display.flip()
             clock.tick(FPS)
         
         pygame.quit()

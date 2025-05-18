@@ -20,7 +20,6 @@ This project simulates the magnetic levitation physics of a maglev train system,
 -   PyOpenGL
 -   NumPy
 -   PyGame (for window management)
--   SciPy (for physics calculations)
 
 ## Installation
 

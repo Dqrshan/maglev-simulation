@@ -7,66 +7,43 @@ import math
 import time
 from collections import deque
 
-# Constants
 WINDOW_WIDTH = 1200
 WINDOW_HEIGHT = 800
 FPS = 60
-
 TRAIN_LENGTH = 2.0
 TRAIN_WIDTH = 1.0
 TRAIN_HEIGHT = 0.5
 TRACK_LENGTH = 40.0
 MAGNET_SPACING = 1.5
 FIELD_STRENGTH = 1.0
-MAX_SPEED = 20.0
+MAX_SPEED = 30.0
 ACCELERATION = 0.5
 
 class MaglevSimulation:
     def __init__(self):
-        # Initialize pygame first
-        pygame.init()
-        
-        # Create OpenGL display
+        pygame.init()        
         self.screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT), DOUBLEBUF|OPENGL)
         pygame.display.set_caption("Maglev Simulation with Magnetic Field Visualization")
-        
-        # Initialize font
         pygame.font.init()
-        self.font = pygame.font.SysFont('Arial', 24, bold=True)
-        
-        # Train properties
+        self.font = pygame.font.SysFont('Arial', 20, bold=True)
         self.train_pos = -TRACK_LENGTH/2
         self.train_speed = 0.0
         self.is_running = False
-        
-        # Camera properties
         self.camera_distance = 20.0
         self.camera_angle_x = 30.0
         self.camera_angle_y = -30.0
         self.camera_pos = [0, 5, 0]
-        
-        # Mouse interaction
         self.mouse_dragging = False
         self.mouse_last_pos = (0, 0)
-        
-        # Field visualization
         self.field_lines = []
         self.field_arrows = []
         self.generate_field_geometry()
-        
-        # Track geometry
         self.track_vertices = []
         self.generate_track_geometry()
-        
-        # Train history for trail effect
         self.train_history = deque(maxlen=100)
-        
-        # Performance metrics
         self.last_time = time.time()
         self.frame_count = 0
         self.fps = 0
-        
-        # Set up OpenGL
         self.setup_opengl()
         
     def setup_opengl(self):
@@ -412,25 +389,20 @@ class MaglevSimulation:
     
     def draw_hud(self):
         """Draw heads-up display with information"""
-        # Disable lighting and depth test for 2D rendering
         glDisable(GL_LIGHTING)
         glDisable(GL_DEPTH_TEST)
-        
-        # Enable blending for transparent text
+
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
         
-        # Draw stats
         self.render_text(f"Speed: {abs(self.train_speed):.1f} m/s", (20, WINDOW_HEIGHT - 30))
         self.render_text(f"Position: {self.train_pos:.1f} m", (20, WINDOW_HEIGHT - 60))
         self.render_text(f"Status: {'RUNNING' if self.is_running else 'STOPPED'}", (20, WINDOW_HEIGHT - 90))
         self.render_text(f"FPS: {self.fps:.1f}", (20, WINDOW_HEIGHT - 120))
         
-        # Draw controls
         controls_text = "Controls: Up/Down - Speed | Space - Start/Stop | R - Reset | Left Click+Drag - Rotate | Scroll - Zoom"
         self.render_text(controls_text, (WINDOW_WIDTH//2 - 350, 20))
         
-        # Restore OpenGL state
         glEnable(GL_DEPTH_TEST)
         glEnable(GL_LIGHTING)
     
@@ -438,7 +410,6 @@ class MaglevSimulation:
         """Main rendering function"""
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         
-        # Set up 3D perspective projection
         glMatrixMode(GL_PROJECTION)
         glLoadIdentity()
         gluPerspective(45, WINDOW_WIDTH / WINDOW_HEIGHT, 0.1, 100.0)
@@ -454,24 +425,20 @@ class MaglevSimulation:
         glRotatef(self.camera_angle_x, 1, 0, 0)
         glRotatef(self.camera_angle_y, 0, 1, 0)
         
-        # Draw coordinate axes
         glBegin(GL_LINES)
         glColor3f(1, 0, 0); glVertex3f(0, 0, 0); glVertex3f(5, 0, 0)  # X
         glColor3f(0, 1, 0); glVertex3f(0, 0, 0); glVertex3f(0, 5, 0)  # Y
         glColor3f(0, 0, 1); glVertex3f(0, 0, 0); glVertex3f(0, 0, 5)  # Z
         glEnd()
         
-        # Enable blending for transparent effects
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
         
-        # Draw scene elements
         self.draw_track()
         self.draw_field_lines()
         self.draw_train_trail()
         self.draw_train()
         
-        # Draw HUD text
         self.draw_hud()
     
     def handle_events(self):

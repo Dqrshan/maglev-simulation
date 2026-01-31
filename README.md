@@ -50,5 +50,9 @@ This project simulates the magnetic levitation physics of a maglev train system,
 
 5.  Run the simulation:
     ```bash
-    python maglev.py
-    ```
+    
+## Preview
+
+![Screenshot of Maglev Train Simulation Initialization](assets/Screenshot1.png)
+
+![Screenshot of Maglev Train Simulation in Motion](assets/Screenshot2.png)
